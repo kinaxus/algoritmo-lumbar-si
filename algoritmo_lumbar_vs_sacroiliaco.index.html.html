@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Algoritmo Diagnóstico — Lumbar vs. Sacroilíaca</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --blue-50:#E6F1FB;--blue-100:#B5D4F4;--blue-600:#185FA5;--blue-800:#0C447C;
+    --green-50:#EAF3DE;--green-100:#C0DD97;--green-600:#3B6D11;--green-800:#27500A;
+    --amber-50:#FAEEDA;--amber-100:#FAC775;--amber-600:#854F0B;--amber-800:#633806;
+    --red-50:#FCEBEB;--red-100:#F7C1C1;--red-600:#A32D2D;--red-800:#791F1F;
+    --purple-50:#EEEDFE;--purple-100:#CECBF6;--purple-600:#534AB7;--purple-800:#3C3489;
+    --gray-100:#f5f4f0;--gray-200:#e8e6e0;--gray-400:#9a9890;--gray-700:#3d3c38;--gray-900:#1a1917;
+    --font:'IBM Plex Sans',sans-serif;--mono:'IBM Plex Mono',monospace;
+  }
+  body { font-family:var(--font);background:var(--gray-100);color:var(--gray-900);min-height:100vh;padding:24px 16px 48px; }
+  .page-wrap { max-width:680px;margin:0 auto; }
+  header { margin-bottom:28px;padding-bottom:18px;border-bottom:1px solid var(--gray-200); }
+  .header-top { display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap; }
+  header h1 { font-size:20px;font-weight:600;color:var(--gray-900);line-height:1.3; }
+  header p { font-size:12px;color:var(--gray-400);margin-top:4px;font-family:var(--mono); }
+  .badge-ref { font-size:10px;font-family:var(--mono);background:var(--gray-200);color:var(--gray-400);padding:3px 8px;border-radius:4px;white-space:nowrap;margin-top:4px; }
+  .progress-bar { display:flex;align-items:center;gap:4px;margin-top:14px; }
+  .prog-dot { width:8px;height:8px;border-radius:50%;background:var(--gray-200);transition:background .25s; }
+  .prog-dot.active { background:#378ADD; }
+  .prog-dot.done { background:#639922; }
+  .prog-label { font-size:11px;font-family:var(--mono);color:var(--gray-400);margin-left:8px; }
+  .step-card { background:#fff;border:1px solid var(--gray-200);border-radius:10px;padding:16px 18px;margin-bottom:6px;transition:box-shadow .2s; }
+  .step-card.active-card { border-color:#B5D4F4;box-shadow:0 0 0 3px rgba(55,138,221,.08); }
+  .step-row { display:flex;align-items:flex-start;gap:12px; }
+  .step-num { min-width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;flex-shrink:0;margin-top:1px;font-family:var(--mono); }
+  .step-body { flex:1; }
+  .step-q { font-size:15px;font-weight:500;color:var(--gray-900);margin-bottom:8px;line-height:1.4; }
+  .step-hint { font-size:12px;color:var(--gray-400);margin-bottom:10px;line-height:1.6; }
+  .answers { display:flex;gap:8px;flex-wrap:wrap; }
+  button { font-family:var(--font);font-size:12px;font-weight:500;border-radius:6px;padding:6px 14px;cursor:pointer;border:1px solid;transition:background .15s,transform .1s; }
+  button:active { transform:scale(.97); }
+  .btn-yes { background:var(--green-50);color:var(--green-600);border-color:#97C459; }
+  .btn-yes:hover { background:var(--green-100); }
+  .btn-no { background:var(--blue-50);color:var(--blue-600);border-color:#85B7EB; }
+  .btn-no:hover { background:var(--blue-100); }
+  .btn-alt { background:var(--gray-100);color:var(--gray-700);border-color:var(--gray-200); }
+  .btn-alt:hover { background:var(--gray-200); }
+  .score-btn { background:var(--gray-100);color:var(--gray-700);border-color:var(--gray-200);padding:6px 12px; }
+  .score-btn:hover { background:var(--blue-50);border-color:#85B7EB;color:var(--blue-600); }
+  .connector { width:2px;height:14px;background:var(--gray-200);margin-left:15px;margin-bottom:6px; }
+  .hidden { display:none !important; }
+  .tag { display:inline-block;border-radius:4px;padding:2px 7px;font-size:10px;font-weight:500;font-family:var(--mono);margin-right:3px;margin-bottom:3px; }
+  .tag-green { background:var(--green-100);color:var(--green-800); }
+  .tag-blue { background:var(--blue-100);color:var(--blue-800); }
+  .tag-amber { background:var(--amber-100);color:var(--amber-800); }
+  .tag-red { background:var(--red-100);color:var(--red-800); }
+  .tag-purple { background:var(--purple-100);color:var(--purple-800); }
+  .laslett-grid { display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px;margin-bottom:10px; }
+  .laslett-item { background:var(--gray-100);border:1px solid var(--gray-200);border-radius:6px;padding:7px 9px;font-size:11px;color:var(--gray-400);line-height:1.5; }
+  .laslett-item b { display:block;color:var(--gray-700);font-size:11px;font-weight:500;margin-bottom:2px; }
+  .score-row { display:flex;gap:6px;flex-wrap:wrap; }
+  .sub-steps { background:var(--gray-100);border-left:3px solid var(--gray-200);border-radius:0 6px 6px 0;padding:9px 12px;margin:6px 0 10px;font-size:12px;color:var(--gray-400);line-height:1.7; }
+  .sub-steps b { color:var(--gray-700);font-weight:500; }
+  .result-box { border-radius:10px;padding:16px 18px;margin-top:4px;border:1px solid; }
+  .result-lumbar { background:var(--blue-50);border-color:#85B7EB; }
+  .result-si { background:var(--green-50);border-color:#97C459; }
+  .result-other { background:var(--amber-50);border-color:var(--amber-100); }
+  .result-red { background:var(--red-50);border-color:var(--red-100); }
+  .result-title { font-size:15px;font-weight:600;margin-bottom:8px;line-height:1.3; }
+  .result-lumbar .result-title { color:var(--blue-800); }
+  .result-si .result-title { color:var(--green-800); }
+  .result-other .result-title { color:var(--amber-800); }
+  .result-red .result-title { color:var(--red-800); }
+  .result-detail { font-size:12px;line-height:1.7; }
+  .result-lumbar .result-detail { color:var(--blue-600); }
+  .result-si .result-detail { color:var(--green-600); }
+  .result-other .result-detail { color:var(--amber-600); }
+  .result-red .result-detail { color:var(--red-600); }
+  .result-detail b { font-weight:600; }
+  .nota { font-size:11px;color:var(--gray-400);background:var(--gray-100);border-radius:5px;padding:5px 9px;margin-top:6px;display:block;line-height:1.5; }
+  /* Expandable panels */
+  .expand-btn { display:flex;align-items:center;gap:6px;background:none;border:1px solid var(--gray-200);border-radius:6px;padding:6px 10px;font-size:11px;color:var(--gray-700);cursor:pointer;margin-top:8px;width:100%;text-align:left;font-family:var(--font); }
+  .expand-btn:hover { background:var(--gray-100); }
+  .expand-icon { font-size:10px;transition:transform .2s;display:inline-block; }
+  .expand-icon.open { transform:rotate(90deg); }
+  .expand-panel { display:none;margin-top:6px;border-radius:8px;overflow:hidden;border:1px solid var(--gray-200); }
+  .expand-panel.open { display:block; }
+  /* Info sections inside panels */
+  .info-section { padding:10px 12px;font-size:12px;line-height:1.7; }
+  .info-section + .info-section { border-top:1px solid var(--gray-200); }
+  .info-section-title { font-size:11px;font-weight:600;font-family:var(--mono);text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px; }
+  /* Fritz table */
+  .fritz-table { width:100%;border-collapse:collapse;font-size:11px;margin-top:6px; }
+  .fritz-table th { background:var(--gray-200);color:var(--gray-700);font-weight:600;padding:6px 8px;text-align:left;font-size:10px;font-family:var(--mono); }
+  .fritz-table td { padding:6px 8px;color:var(--gray-700);border-top:1px solid var(--gray-200);vertical-align:top; }
+  .fritz-table tr:nth-child(even) td { background:var(--gray-100); }
+  /* McGill exercise cards */
+  .mcgill-grid { display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-top:6px; }
+  .mcgill-card { background:var(--gray-100);border:1px solid var(--gray-200);border-radius:8px;padding:8px 10px; }
+  .mcgill-card-title { font-size:11px;font-weight:600;color:var(--gray-900);margin-bottom:4px; }
+  .mcgill-card-body { font-size:10px;color:var(--gray-400);line-height:1.5; }
+  /* Ficha link */
+  .ficha-link { display:inline-flex;align-items:center;gap:5px;background:var(--purple-50);border:1px solid var(--purple-100);border-radius:6px;padding:6px 11px;font-size:11px;color:var(--purple-800);text-decoration:none;font-weight:500;margin-top:10px;cursor:pointer; }
+  .ficha-link:hover { background:var(--purple-100); }
+  /* Radicular detail table */
+  .nivel-table { width:100%;border-collapse:collapse;font-size:11px;margin-top:4px; }
+  .nivel-table th { background:var(--blue-100);color:var(--blue-800);padding:5px 8px;text-align:left;font-size:10px;font-family:var(--mono);font-weight:600; }
+  .nivel-table td { padding:5px 8px;color:var(--gray-700);border-top:1px solid var(--gray-200);vertical-align:top; }
+  .nivel-table tr:nth-child(even) td { background:var(--blue-50); }
+  .reset-btn { font-size:12px;color:var(--gray-400);border:1px solid var(--gray-200);background:transparent;border-radius:6px;padding:5px 14px;cursor:pointer;margin-top:14px;font-family:var(--font); }
+  .reset-btn:hover { background:var(--gray-200);color:var(--gray-700); }
+  footer { margin-top:40px;padding-top:16px;border-top:1px solid var(--gray-200);font-size:11px;color:var(--gray-400);font-family:var(--mono);line-height:1.8; }
+  @media (max-width:480px) {
+    .laslett-grid,.mcgill-grid { grid-template-columns:1fr; }
+    .header-top { flex-direction:column; }
+  }
+  @media print { body { background:white;padding:0; } .step-card { break-inside:avoid; } }
+</style>
+</head>
+<body>
+<div class="page-wrap">
+
+  <header>
+    <div class="header-top">
+      <div>
+        <h1>Algoritmo Diagnóstico Diferencial</h1>
+        <p>Dolor lumbar bajo vs. articulación sacroilíaca</p>
+      </div>
+      <span class="badge-ref">Laslett 2019 · Fritz-McGill adaptado</span>
+    </div>
+    <div class="progress-bar">
+      <div class="prog-dot" id="d0"></div>
+      <div class="prog-dot" id="d1"></div>
+      <div class="prog-dot" id="d2"></div>
+      <div class="prog-dot" id="d3"></div>
+      <div class="prog-dot" id="d4"></div>
+      <div class="prog-dot" id="d5"></div>
+      <span class="prog-label" id="prog-label">Paso 0 / 5</span>
+    </div>
+  </header>
+
+  <!-- PASO 0 -->
+  <div id="paso0" class="step-card active-card">
+    <div class="step-row">
+      <div class="step-num" style="background:var(--red-50);color:var(--red-600);border:1px solid var(--red-100)">🚩</div>
+      <div class="step-body">
+        <div class="step-q">Antes de empezar: ¿hay banderas rojas?</div>
+        <div class="step-hint">Déficit neurológico progresivo · Disfunción esfinteriana · Dolor nocturno constante sin alivio postural · Pérdida de peso inexplicable · Fiebre / síntomas sistémicos · Traumatismo de alta energía · Antecedentes oncológicos</div>
+        <div class="answers">
+          <button class="btn-alt" onclick="goto(0,'red')">Sí — hay banderas rojas</button>
+          <button class="btn-yes" onclick="goto(0,'ok')">No — continuar evaluación</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="connector" id="c01"></div>
+
+  <!-- PASO 1 -->
+  <div id="paso1" class="step-card hidden">
+    <div class="step-row">
+      <div class="step-num" style="background:var(--blue-50);color:var(--blue-600);border:1px solid var(--blue-100)">1</div>
+      <div class="step-body">
+        <div class="step-q">¿El dolor está <strong>por debajo de L5</strong>?</div>
+        <div class="step-hint">
+          <span class="tag tag-green">S-I</span> Glúteo · EIPS · posterolateral muslo · ingle · trocánter — NUNCA sobre L5<br>
+          <span class="tag tag-blue">Lumbar</span> Central · puede ser por encima de L5 · zona media
+        </div>
+        <div class="answers">
+          <button class="btn-yes" onclick="goto(1,'si')">Sí — por debajo de L5</button>
+          <button class="btn-no" onclick="goto(1,'no')">No — dolor por encima de L5</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="connector hidden" id="c12"></div>
+
+  <!-- PASO 2 -->
+  <div id="paso2" class="step-card hidden">
+    <div class="step-row">
+      <div class="step-num" style="background:var(--blue-50);color:var(--blue-600);border:1px solid var(--blue-100)">2</div>
+      <div class="step-body">
+        <div class="step-q">¿Hay <strong>cuadro radicular típico</strong>?</div>
+        <div class="step-hint">
+          SLR (+) · SLR cruzado (+) · adormecimiento o debilidad en MMII · dolor eléctrico bajo rodilla · alteración refleja L3–S3
+          <span class="nota">⚠️ Dolor quemante o pinchazo sin componente eléctrico no es radicular — puede ser S-I</span>
+        </div>
+        <div class="answers">
+          <button class="btn-no" onclick="goto(2,'si')">Sí — patrón radicular claro</button>
+          <button class="btn-yes" onclick="goto(2,'no')">No — sin signos neurológicos</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="connector hidden" id="c23"></div>
+
+  <!-- PASO 3 -->
+  <div id="paso3" class="step-card hidden">
+    <div class="step-row">
+      <div class="step-num" style="background:var(--blue-50);color:var(--blue-600);border:1px solid var(--blue-100)">3</div>
+      <div class="step-body">
+        <div class="step-q">¿Los síntomas <strong>centralizan</strong> con movimientos repetidos? (McKenzie)</div>
+        <div class="step-hint">
+          Hacer 10 extensiones + 10 flexiones de tronco/cadera al máximo rango.<br>
+          <span class="tag tag-blue">Centraliza</span> El dolor distal se mueve hacia proximal o desaparece → muy probablemente discogénico<br>
+          <span class="tag tag-green">No centraliza</span> Sin cambio o periférico → continuar hacia tests S-I
+        </div>
+        <div class="answers">
+          <button class="btn-no" onclick="goto(3,'si')">Sí — centraliza</button>
+          <button class="btn-yes" onclick="goto(3,'no')">No — no centraliza</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="connector hidden" id="c34"></div>
+
+  <!-- PASO 4 -->
+  <div id="paso4" class="step-card hidden">
+    <div class="step-row">
+      <div class="step-num" style="background:var(--green-50);color:var(--green-600);border:1px solid var(--green-100)">4</div>
+      <div class="step-body">
+        <div class="step-q">Batería de Laslett — ¿cuántos tests provocativos S-I son <strong>positivos</strong>?</div>
+        <div class="step-hint">Solo contar positivo si reproduce el síntoma habitual del paciente (no cualquier dolor)</div>
+        <div class="laslett-grid">
+          <div class="laslett-item"><b>1. Distracción (Gapping)</b>Presión divergente en EIAS · alta sensibilidad</div>
+          <div class="laslett-item"><b>2. Thigh Thrust ★ más confiable</b>Cad. 90° FL → compresión axial · alta especificidad</div>
+          <div class="laslett-item"><b>3. Compresión lateral</b>D. lateral · cresta ilíaca hacia camilla</div>
+          <div class="laslett-item"><b>4. Compresión sacra</b>Prono · ápice del sacro hacia camilla</div>
+          <div class="laslett-item"><b>5. Gaenslen</b>Borde camilla · cad. extensión/flexión diferencial</div>
+          <div class="laslett-item"><b>6. FABER (Patrick)</b>FL-ABD-RE · ¿reproduce síntoma habitual?</div>
+        </div>
+        <div class="score-row">
+          <button class="score-btn" onclick="goto(4,'0')">0–1 positivo</button>
+          <button class="score-btn" onclick="goto(4,'2')">2 positivos</button>
+          <button class="score-btn" onclick="goto(4,'3+')">≥ 3 positivos</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="connector hidden" id="c45"></div>
+
+  <!-- PASO 5 -->
+  <div id="paso5" class="step-card hidden">
+    <div class="step-row">
+      <div class="step-num" style="background:var(--green-50);color:var(--green-600);border:1px solid var(--green-100)">5</div>
+      <div class="step-body">
+        <div class="step-q">Test del cinto + dirección de preferencia → <strong>¿qué subgrupo?</strong></div>
+        <div class="sub-steps">
+          <b>Test del cinto:</b> colocar justo debajo de EIAS → re-chequear signo comparable de pie<br>
+          <b>Dirección de preferencia:</b> 10 flex. cadera + 10 ext. cadera → ¿cuál reduce el signo comparable?
+        </div>
+        <div class="score-row">
+          <button class="score-btn" onclick="goto(5,'inestab')">Mejora con cinto → inestabilidad</button>
+          <button class="score-btn" onclick="goto(5,'ext')">Mejor con extensión</button>
+          <button class="score-btn" onclick="goto(5,'flex')">Mejor con flexión</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="result-area"></div>
+
+  <div id="reset-row" class="hidden">
+    <button class="reset-btn" onclick="resetAll()">↩ Reiniciar algoritmo</button>
+  </div>
+
+  <footer>
+    Lic. Mara Estevez — Kinesióloga Fisiatra · Cert. MDT, CMP, FMSC, SFMA · McGill Method Provider<br>
+    Ref: Ponce Amorín / Favaloro 2026 · Laslett 2019 · Fritz &amp; Cleland 2007 · McGill 2017<br>
+    estevezmara@yahoo.com.ar · @estevez_mara · @premovimiento
+  </footer>
+
+</div>
+
+<script>
+const totalSteps = 6;
+
+function updateProgress(n) {
+  for (let i = 0; i < totalSteps; i++) {
+    const d = document.getElementById('d' + i);
+    d.classList.remove('active','done');
+    if (i < n) d.classList.add('done');
+    else if (i === n) d.classList.add('active');
+  }
+  document.getElementById('prog-label').textContent = 'Paso ' + n + ' / 5';
+}
+
+function hideFrom(n) {
+  const steps = ['paso0','paso1','paso2','paso3','paso4','paso5'];
+  const conns = ['c01','c12','c23','c34','c45'];
+  for (let i = n; i < steps.length; i++) {
+    document.getElementById(steps[i]).classList.add('hidden');
+    document.getElementById(steps[i]).classList.remove('active-card');
+    if (i < conns.length) document.getElementById(conns[i]).classList.add('hidden');
+  }
+  document.getElementById('result-area').innerHTML = '';
+  document.getElementById('reset-row').classList.add('hidden');
+}
+
+function showStep(n) {
+  const el = document.getElementById('paso' + n);
+  el.classList.remove('hidden');
+  el.classList.add('active-card');
+  updateProgress(n);
+}
+
+function showConnector(n) {
+  const conns = ['c01','c12','c23','c34','c45'];
+  if (n < conns.length) document.getElementById(conns[n]).classList.remove('hidden');
+}
+
+function showResult(html) {
+  document.getElementById('result-area').innerHTML = html;
+  document.getElementById('reset-row').classList.remove('hidden');
+}
+
+function toggleExpand(id) {
+  const panel = document.getElementById(id);
+  const icon = document.getElementById('icon-' + id);
+  panel.classList.toggle('open');
+  icon.classList.toggle('open');
+}
+
+// ─── CONTENIDOS EXPANDIBLES ─────────────────────────────────────────
+
+const HTML_RADICULAR = `
+<div class="result-box result-lumbar">
+  <div class="result-title">Probable compresión radicular / hernia discal</div>
+  <div class="result-detail">
+    Cuadro radicular confirmado → origen lumbar, no sacroilíaco.<br><br>
+    <b>Tests positivos orientadores:</b><br>
+    <span class="tag tag-blue">SLR (+)</span> <span class="tag tag-blue">SLR cruzado (+)</span> <span class="tag tag-blue">Dermatomos alterados</span> <span class="tag tag-blue">Reflejos asimétricos</span><br><br>
+
+    <button class="expand-btn" onclick="toggleExpand('rad-niveles')">
+      <span class="expand-icon" id="icon-rad-niveles">▶</span> Niveles radiculares — qué buscar por nivel
+    </button>
+    <div class="expand-panel" id="rad-niveles">
+      <div class="info-section">
+        <table class="nivel-table">
+          <tr><th>Nivel</th><th>Dermatoma (sensibilidad)</th><th>Músculo (fuerza)</th><th>Reflejo</th></tr>
+          <tr><td><b>L3</b></td><td>Cara anterior muslo / rodilla</td><td>Cuádriceps (extensión rodilla)</td><td>Rotuliano ↓</td></tr>
+          <tr><td><b>L4</b></td><td>Cara medial pierna / tobillo</td><td>Tibial anterior (dorsiflexión)</td><td>Rotuliano ↓↓</td></tr>
+          <tr><td><b>L5</b></td><td>Cara lateral pierna / dorso pie</td><td>Extensor 1° dedo (EHL)</td><td>Sin reflejo confiable</td></tr>
+          <tr><td><b>S1</b></td><td>Cara posterior pierna / planta pie</td><td>Gemelos (flexión plantar)</td><td>Aquíleo ↓</td></tr>
+          <tr><td><b>S2–S3</b></td><td>Cara posterior muslo / periné</td><td>Flexores plantares</td><td>Esfinteriano</td></tr>
+        </table>
+      </div>
+    </div>
+
+    <button class="expand-btn" onclick="toggleExpand('rad-accion')">
+      <span class="expand-icon" id="icon-rad-accion">▶</span> Acción clínica según gravedad
+    </button>
+    <div class="expand-panel" id="rad-accion">
+      <div class="info-section" style="background:var(--red-50)">
+        <div class="info-section-title" style="color:var(--red-600)">🚨 Urgencia — derivar inmediato</div>
+        Déficit motor progresivo · disfunción esfinteriana (retención / incontinencia) · anestesia en silla de montar → sospecha <b>Síndrome Cauda Equina</b> → RMN urgente + derivación neurocirugía
+      </div>
+      <div class="info-section">
+        <div class="info-section-title" style="color:var(--blue-600)">Déficit neurológico estable — manejo conservador</div>
+        1. <b>Evaluación MDT:</b> probar 10 extensiones en prono/parado. Si el dolor distal mejora o centraliza → dirección de preferencia extensión (más frecuente en hernia posterolateral L4-L5 / L5-S1).<br>
+        2. <b>Si centraliza:</b> ejercicios repetidos en DP · columna neutra en AVD · evitar flexión sostenida.<br>
+        3. <b>Si NO centraliza:</b> evaluar criterios de estabilización Fritz (ver abajo). Iniciar control del dolor y educación.
+      </div>
+      <div class="info-section">
+        <div class="info-section-title" style="color:var(--blue-600)">Derivación médica — cuándo</div>
+        Síntomas sin mejora a las <b>6–8 semanas</b> de tratamiento conservador · déficit motor que avanza · dolor nocturno que no cede · RMN indicada por médico derivante.
+      </div>
+      <div class="info-section">
+        <div class="info-section-title" style="color:var(--blue-600)">Ficha de evaluación</div>
+        Completar sección neurológica de la ficha de columna: SLR, SLR cruzado, dermatomos L3–S3, reflejos rotuliano y aquíleo, tensión neural en sedente.<br>
+        <a class="ficha-link" href="https://docs.google.com/spreadsheets/d/1FCaTAzYMAwXYScqN72kkihhH8Ss_DfGK/copy" target="_blank">📋 Ficha Evaluación Kinésica — Columna (Zona Media)</a>
+      </div>
+    </div>
+  </div>
+</div>`;
+
+const HTML_LUMBAR_ALTO = `
+<div class="result-box result-lumbar">
+  <div class="result-title">Probable patología lumbar — aplicar algoritmo Fritz / McGill</div>
+  <div class="result-detail">
+    El dolor sobre L5 sin radiculopatía orienta a columna lumbar: discogénico, facetario o estenosis.<br>
+    El diagnóstico kinesiológico no es por imagen sino por <b>respuesta al movimiento</b>.<br><br>
+
+    <button class="expand-btn" onclick="toggleExpand('fritz-paso1')">
+      <span class="expand-icon" id="icon-fritz-paso1">▶</span> PASO 1 — Centralización / Dirección de preferencia (MDT)
+    </button>
+    <div class="expand-panel" id="fritz-paso1">
+      <div class="info-section">
+        <div class="info-section-title" style="color:var(--blue-600)">Qué hacer</div>
+        Realizar <b>10 extensiones</b> de tronco en prono o parado + <b>10 flexiones</b> al máximo rango.<br>
+        Preguntarle al paciente: <i>"¿el dolor de pierna / cola / zona lumbar mejoró, empeoró o no cambió?"</i>
+      </div>
+      <div class="info-section">
+        <div class="info-section-title" style="color:var(--blue-600)">Interpretación</div>
+        <span class="tag tag-blue">Centraliza</span> El dolor distal sube hacia la columna o desaparece → <b>desarreglo discogénico</b> con DP.<br>
+        Distribución DP: <span class="tag tag-blue">Extensión 70%</span> <span class="tag tag-blue">Lateral 24%</span> <span class="tag tag-blue">Flexión 6%</span><br><br>
+        <b>Si centraliza → tratamiento:</b> ejercicios repetidos en la dirección que centraliza, cada 2 hs en fase aguda · educación postural · no elongar.<br><br>
+        <span class="tag tag-amber">No centraliza</span> → continuar a Paso 2
+      </div>
+    </div>
+
+    <button class="expand-btn" onclick="toggleExpand('fritz-paso2')">
+      <span class="expand-icon" id="icon-fritz-paso2">▶</span> PASO 2 — Criterios de manipulación
+    </button>
+    <div class="expand-panel" id="fritz-paso2">
+      <div class="info-section">
+        <div class="info-section-title" style="color:var(--blue-600)">Cumplir los 2 criterios obligatorios</div>
+        ✔ Síntomas con <b>menos de 16 días</b> de evolución<br>
+        ✔ <b>Sin síntomas distales a la rodilla</b> (sin irradiación bajo rodilla)<br><br>
+        Si se cumplen los 2 → <b>manipulación o movilización lumbar</b> de alta velocidad / baja amplitud (HVLA) tiene alta probabilidad de éxito en 1–2 sesiones.<br><br>
+        <span class="nota">Criterios adicionales que refuerzan la predicción: hipomobilidad lumbar en juego articular, FABQ &lt; 19, al menos un segmento hipomóvil en evaluación pasiva.</span>
+      </div>
+      <div class="info-section">
+        <div class="info-section-title" style="color:var(--blue-600)">Si no cumple criterios</div>
+        Pasar a Paso 3 — evaluación de estabilidad.
+      </div>
+    </div>
+
+    <button class="expand-btn" onclick="toggleExpand('fritz-paso3')">
+      <span class="expand-icon" id="icon-fritz-paso3">▶</span> PASO 3 — Criterios de estabilización (≥ 3 de 4)
+    </button>
+    <div class="expand-panel" id="fritz-paso3">
+      <div class="info-section">
+        <div class="info-section-title" style="color:var(--blue-600)">Los 4 criterios — necesita ≥ 3 positivos</div>
+        <table class="fritz-table">
+          <tr><th>Criterio</th><th>Cómo evaluarlo</th><th>Positivo si…</th></tr>
+          <tr><td><b>Edad &lt; 40 años</b></td><td>Anamnesis</td><td>Paciente menor de 40</td></tr>
+          <tr><td><b>SLR &gt; 91°</b></td><td>Lasègue pasivo bilateral</td><td>Flexión cadera &gt; 91° sin dolor</td></tr>
+          <tr><td><b>Movimientos aberrantes</b></td><td>Observar flexión / extensión lumbar de pie</td><td>Patrón "en pedacitos", instabilidad, catching, reversal</td></tr>
+          <tr><td><b>Test inestabilidad en prono</b></td><td>Prono, pies en piso → presión espinosa. Luego elevar piernas → repetir presión</td><td>Duele con pies en piso, NO duele con piernas elevadas (musculatura activa estabiliza)</td></tr>
+        </table>
+      </div>
+      <div class="info-section">
+        <div class="info-section-title" style="color:var(--blue-600)">Si ≥ 3 criterios positivos → programa de estabilización</div>
+        Iniciar con los <b>3 Grandes de McGill</b> en fase aguda. Ver detalle abajo.
+      </div>
+      <div class="info-section">
+        <div class="info-section-title" style="color:var(--blue-600)">Ficha de evaluación</div>
+        Completar secciones 3 (algoritmo Fritz), 4 (tests posturales y clínicos) y 5 (tests de resistencia McGill) de la ficha de columna.<br>
+        <a class="ficha-link" href="https://docs.google.com/spreadsheets/d/1FCaTAzYMAwXYScqN72kkihhH8Ss_DfGK/copy" target="_blank">📋 Ficha Evaluación Kinésica — Columna (Zona Media)</a>
+      </div>
+    </div>
+
+    <button class="expand-btn" onclick="toggleExpand('mcgill-3grandes')">
+      <span class="expand-icon" id="icon-mcgill-3grandes">▶</span> Los 3 Grandes de McGill — técnica y dosificación
+    </button>
+    <div class="expand-panel" id="mcgill-3grandes">
+      <div class="info-section">
+        <div class="info-section-title" style="color:var(--purple-600)">Principio general</div>
+        Resistencia muscular, NO fuerza máxima. Series cortas descendentes con pausas breves (5–10 seg entre reps, 60–90 seg entre series). Carga discal baja. Columna en posición neutra en todo momento.
+      </div>
+      <div class="info-section">
+        <div class="info-section-title" style="color:var(--purple-600)">1 — Abdominal corto (Curl-up)</div>
+        <b>Posición:</b> Supino, una rodilla flexionada, manos bajo la zona lumbar para preservar lordosis.<br>
+        <b>Movimiento:</b> Elevar cabeza y hombros apenas 3–5 cm. NO flexionar columna lumbar. Cuello neutro.<br>
+        <b>Objetivo:</b> Flexores superficiales y profundos con baja carga discal (~1.838 N). Menor activación de psoas que el crunch estándar.<br>
+        <b>Dosificación inicial:</b> 3 series descendentes: 10 – 8 – 6 reps × 5–8 seg de sostén. Pausa 5 seg entre reps.
+      </div>
+      <div class="info-section">
+        <div class="info-section-title" style="color:var(--purple-600)">2 — Perro de caza (Bird-dog)</div>
+        <b>Posición:</b> Cuadrupedia, columna neutra (ni lordosis excesiva ni cifosis). Faja abdominal activa antes de mover.<br>
+        <b>Movimiento:</b> Extender brazo y pierna CONTRALATERALES simultáneamente. Sin rotar pelvis. Sin elevar lumbar. Sostener 8–10 seg, volver lento.<br>
+        <b>Objetivo:</b> Extensores espinales + glúteos + estabilizadores de hombro. Carga moderada (~2.000–3.000 N). Patrón diagonal del Force Closure.<br>
+        <b>Dosificación inicial:</b> 3 series × 8 reps por lado × 8 seg. Alternar lados dentro de la serie.
+      </div>
+      <div class="info-section">
+        <div class="info-section-title" style="color:var(--purple-600)">3 — Puente lateral (Side Bridge)</div>
+        <b>Posición:</b> Decúbito lateral, codo bajo hombro (90°), pies apoyados. Pelvis elevada en línea con cabeza y pies. Brazo libre en hombro opuesto.<br>
+        <b>Movimiento:</b> Isométrico. Mantener alineación neutra. No hundir cadera ni rotar tronco.<br>
+        <b>Objetivo:</b> Oblicuos interno y externo + cuadrado lumbar + estabilizadores de cadera. Carga lateral sin flexión (~2.585 N).<br>
+        <b>Dosificación inicial:</b> 3 series × 8 reps × 8–10 seg por lado. Progresión: sobre rodillas → sobre pies → pierna superior elevada.<br>
+        <b>Alerta de ratio:</b> Diferencia entre lado D e I &gt; 5 % → asimetría significativa → priorizar el lado débil.
+      </div>
+      <div class="info-section">
+        <div class="info-section-title" style="color:var(--purple-600)">Ratios de balance — referencia rápida</div>
+        <span class="tag tag-purple">Flex / Ext &lt; 1.0</span> Si flexores &gt; extensores → riesgo de pérdida de lordosis<br>
+        <span class="tag tag-purple">Puente D / Puente I = 0.91–1.01</span> Simetría bilateral<br>
+        <span class="tag tag-purple">Puente / Ext &lt; 0.75</span> Si supera 0.75 → oblicuos débiles respecto a extensores<br><br>
+        <span class="nota">Tests de referencia: Extensores (Sorensen) H: 161 seg · M: 185 seg | Flexores H: 136 seg · M: 134 seg | Puente lat. H: 95–99 seg · M: 75–78 seg</span>
+      </div>
+    </div>
+  </div>
+</div>`;
+
+const HTML_DISCOGENICO = `
+<div class="result-box result-lumbar">
+  <div class="result-title">Muy probable discogénico — patrón McKenzie</div>
+  <div class="result-detail">
+    La centralización indica origen discal. El dolor S-I verdadero NO centraliza.<br><br>
+    <b>Dirección de preferencia más frecuente:</b><br>
+    <span class="tag tag-blue">Extensión 70%</span> <span class="tag tag-blue">Lateral 24%</span> <span class="tag tag-blue">Flexión 6%</span><br><br>
+    <b>Acción inmediata:</b> ejercicios repetidos en dirección de preferencia · cada 2 hs en fase aguda · evitar la dirección opuesta · educación postural.<br><br>
+
+    <button class="expand-btn" onclick="toggleExpand('disc-mcgill')">
+      <span class="expand-icon" id="icon-disc-mcgill">▶</span> Cuándo y cómo incorporar los 3 Grandes de McGill
+    </button>
+    <div class="expand-panel" id="disc-mcgill">
+      <div class="info-section">
+        <div class="info-section-title" style="color:var(--purple-600)">Momento de introducción</div>
+        Los 3 Grandes se incorporan <b>una vez que el dolor está controlado</b> y el paciente tolera la posición básica sin incremento de síntomas (generalmente semana 2–3).<br><br>
+        En fase aguda discogénica: priorizar <b>ejercicios repetidos en DP</b> + higiene de columna. Los 3 Grandes son el puente hacia la estabilización.
+      </div>
+      <div class="info-section">
+        <div class="info-section-title" style="color:var(--purple-600)">1 — Curl-up (abdominal corto)</div>
+        Supino, una rodilla flex., manos bajo lumbar → elevar solo 3–5 cm. Sin flexión lumbar. Series 10–8–6 × 5–8 seg.
+      </div>
+      <div class="info-section">
+        <div class="info-section-title" style="color:var(--purple-600)">2 — Bird-dog (perro de caza)</div>
+        Cuadrupedia neutra → brazo y pierna contralaterales. Sin rotar pelvis. 8 reps × 8 seg por lado.
+      </div>
+      <div class="info-section">
+        <div class="info-section-title" style="color:var(--purple-600)">3 — Side Bridge (puente lateral)</div>
+        Lateral → codo bajo hombro → pelvis elevada. Isométrico. 8 reps × 8–10 seg por lado. Evaluar simetría D/I.
+      </div>
+      <div class="info-section">
+        <div class="info-section-title" style="color:var(--purple-600)">Ficha de evaluación</div>
+        Completar tests de resistencia McGill (sección 5) para dosificar en base al tiempo obtenido por grupo muscular.<br>
+        <a class="ficha-link" href="https://docs.google.com/spreadsheets/d/1FCaTAzYMAwXYScqN72kkihhH8Ss_DfGK/copy" target="_blank">📋 Ficha Evaluación Kinésica — Columna (Zona Media)</a>
+      </div>
+    </div>
+  </div>
+</div>`;
+
+// ─── GOTO ──────────────────────────────────────────────────────────────
+
+function goto(step, choice) {
+  hideFrom(step + 1);
+
+  if (step === 0) {
+    if (choice === 'red') {
+      showResult(`<div class="result-box result-red">
+        <div class="result-title">🚩 Derivación médica urgente</div>
+        <div class="result-detail">
+          Presencia de banderas rojas — no avanzar en la evaluación kinesiológica estándar.<br><br>
+          <span class="tag tag-red">Déficit neurológico progresivo</span> → neurocirugía / neurología<br>
+          <span class="tag tag-red">Disfunción esfinteriana</span> → URGENCIA — síndrome cauda equina<br>
+          <span class="tag tag-red">Dolor nocturno constante / pérdida de peso</span> → descartar neoplasia<br>
+          <span class="tag tag-red">Fiebre + dolor</span> → descartar infección / espondilodiscitis
+        </div>
+      </div>`);
+      updateProgress(0); return;
+    }
+    showConnector(0); showStep(1); return;
+  }
+
+  if (step === 1) {
+    if (choice === 'no') {
+      showResult(HTML_LUMBAR_ALTO);
+      updateProgress(1); return;
+    }
+    showConnector(1); showStep(2); return;
+  }
+
+  if (step === 2) {
+    if (choice === 'si') {
+      showResult(HTML_RADICULAR);
+      updateProgress(2); return;
+    }
+    showConnector(2); showStep(3); return;
+  }
+
+  if (step === 3) {
+    if (choice === 'si') {
+      showResult(HTML_DISCOGENICO);
+      updateProgress(3); return;
+    }
+    showConnector(3); showStep(4); return;
+  }
+
+  if (step === 4) {
+    if (choice === '0') {
+      showResult(`<div class="result-box result-other">
+        <div class="result-title">S-I poco probable — considerar otros diagnósticos</div>
+        <div class="result-detail">
+          Con 0–1 test provocativo positivo, el dolor sacroilíaco es improbable.<br><br>
+          <b>Diagnósticos a evaluar:</b><br>
+          <span class="tag tag-amber">FAI / cadera</span> <span class="tag tag-amber">Tendinopatía glútea</span> <span class="tag tag-amber">Síndrome piriforme</span> <span class="tag tag-amber">Isquiofemoral impingement</span> <span class="tag tag-amber">Espondiloartropatía</span><br><br>
+          <b>Signo orientador espondiloartropatía:</b> rigidez matinal &gt; 1 hs + paciente joven + mejora con ejercicio.
+        </div>
+      </div>`);
+      updateProgress(4); return;
+    }
+    if (choice === '2') {
+      showResult(`<div class="result-box result-other">
+        <div class="result-title">Probabilidad moderada — profundizar evaluación</div>
+        <div class="result-detail">
+          Con 2 tests positivos la validez es moderada. Si los 2 incluyen Thigh Thrust y Compresión Lateral, la confianza aumenta.<br><br>
+          <b>Recomendación:</b> sumar test del cinto y ASLR · descartar cadera (FADIR, FABER) y tendinopatía glútea.<br><br>
+          <b>Los 4 tests más confiables de Laslett (los que cuentan para este criterio):</b><br>
+          <span class="tag tag-amber">1. Distracción (Gapping)</span> <span class="tag tag-amber">2. Thigh Thrust ★</span> <span class="tag tag-amber">3. Compresión lateral</span> <span class="tag tag-amber">4. Compresión sacra</span><br>
+          <span class="nota">Si los 2 positivos incluyen Thigh Thrust + Compresión Lateral (los más específicos), la confianza diagnóstica aumenta. Gaenslen y FABER tienen menor peso y no forman parte de este criterio.</span>
+        </div>
+      </div>`);
+      updateProgress(4); return;
+    }
+    if (choice === '3+') { showConnector(4); showStep(5); return; }
+  }
+
+  if (step === 5) {
+    const fichaLinkSI = `<a class="ficha-link" href="https://docs.google.com/spreadsheets/d/1gOnGaAf1ZJUiPrALh7Y3lV_OL8daxUfT/copy" target="_blank">📋 Ficha Evaluación Sacroilíaca</a>`;
+    const results = {
+      inestab: `<div class="result-box result-si">
+        <div class="result-title">✅ Alta probabilidad dolor S-I — Subgrupo: Inestabilidad</div>
+        <div class="result-detail">
+          ≥ 3 tests (+) sin centralización + cinto positivo = inestabilidad sacroilíaca (77 % prob. post-test).<br><br>
+          <b>Perfil:</b> síntomas erráticos, sin patrón mecánico claro · embarazo/posparto · score Beighton elevado.<br><br>
+          <b>Tratamiento:</b><br>
+          <span class="tag tag-green">Estabilización cadena diagonal</span> Glúteo mayor ipsi + Dorsal ancho contra + TA / OI<br>
+          <span class="tag tag-green">Faja S-I</span> Colocar debajo de EIAS · uso transitorio<br>
+          <span class="tag tag-green">Progresión</span> Fase aguda: c/2-3 hs · 2×8 → mantenimiento: 1/día · 2×10<br><br>
+          ${fichaLinkSI}
+        </div>
+      </div>`,
+      ext: `<div class="result-box result-si">
+        <div class="result-title">✅ Alta probabilidad dolor S-I — Disfunción → Extensión</div>
+        <div class="result-detail">
+          ≥ 3 tests (+) sin centralización + dirección de preferencia extensión (77 % prob. post-test).<br><br>
+          <b>Perfil:</b> síntomas predecibles · empeoran con flexión · mejoran extendiendo · deportistas activos.<br><br>
+          <b>Tratamiento:</b><br>
+          <span class="tag tag-green">Extensiones repetidas</span> Cadera ×10, 2 series, cada 2-3 hs<br>
+          <span class="tag tag-green">Taping posterior</span> + Maitland S-I<br>
+          <span class="tag tag-green">Fortalecimiento</span> Glúteo mayor · control Shimpi prone test<br><br>
+          ${fichaLinkSI}
+        </div>
+      </div>`,
+      flex: `<div class="result-box result-si">
+        <div class="result-title">✅ Alta probabilidad dolor S-I — Disfunción → Flexión</div>
+        <div class="result-detail">
+          ≥ 3 tests (+) sin centralización + dirección de preferencia flexión (77 % prob. post-test).<br><br>
+          <b>Perfil:</b> síntomas predecibles · empeoran con extensión · mejoran flexionando · deportistas activos.<br><br>
+          <b>Tratamiento:</b><br>
+          <span class="tag tag-green">Flexiones repetidas</span> Cadera ×10, 2 series, cada 2-3 hs<br>
+          <span class="tag tag-green">Taping anterior</span> + Maitland S-I<br>
+          <span class="tag tag-green">Fortalecimiento</span> Glúteo mayor · estabilización zona media<br><br>
+          ${fichaLinkSI}
+        </div>
+      </div>`
+    };
+    showResult(results[choice]);
+    updateProgress(5); return;
+  }
+}
+
+function resetAll() {
+  hideFrom(1);
+  document.getElementById('c01').classList.remove('hidden');
+  const p0 = document.getElementById('paso0');
+  p0.classList.remove('hidden');
+  p0.classList.add('active-card');
+  updateProgress(0);
+}
+
+updateProgress(0);
+document.getElementById('c01').classList.remove('hidden');
+</script>
+</body>
+</html>
